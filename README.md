@@ -2,13 +2,13 @@
 
 Cloudflare-backed code context CLI for Agent Skills.
 
-`lazyload-cloud` is a Node-compatible CLI inspired by LazyLoadingAI, but built around the open Agent Skills format instead of MCP. It indexes local JavaScript and TypeScript projects, answers focused code-context queries, generates portable skill assets, and can sync/query through a Cloudflare Worker.
+`lazyload-cloud` is a Node-compatible CLI built around the open Agent Skills format. It indexes local JavaScript and TypeScript projects, answers focused code-context queries, generates portable skill assets, and can sync/query through a Cloudflare Worker.
 
 ## Features
 
 - JS/TS project indexing with compact symbol metadata
 - Local queries for symbols, functions, call traces, and architecture overview
-- LazyLoadingAI-style **13 tool compatibility commands** on the CLI surface
+- **13 code-context commands** on the CLI surface
 - Agent Skills bootstrap with `SKILL.md`, scripts, references, and examples
 - Cloudflare Worker API for sync, remote queries, and status checks
 - Node-first runtime with Bun-friendly development workflow
