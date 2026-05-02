@@ -1,0 +1,77 @@
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { buildIndex, getArchitectureOverview, getFunction, sanitizeForRemote, searchSymbols, traceCalls } from '../src/lib/indexer.js';
+import { createDefaultProjectConfig } from '../src/lib/project-config.js';
+
+async function makeTempProject(): Promise<string> {
+  return fs.mkdtemp(path.join(os.tmpdir(), 'lazyload-cloud-indexer-'));
+}
+
+async function writeProjectFiles(root: string): Promise<void> {
+  await fs.mkdir(path.join(root, 'src'), { recursive: true });
+  await fs.writeFile(
+    path.join(root, 'src', 'data.ts'),
+    `export async function fetchUser(id: string) {
+  return { id, name: 'Ada' };
+}
+
+export const formatUser = (name: string) => name.toUpperCase();
+`,
+    'utf8'
+  );
+  await fs.writeFile(
+    path.join(root, 'src', 'service.ts'),
+    `import { fetchUser, formatUser } from './data';
+
+export async function renderUser(id: string) {
+  const user = await fetchUser(id);
+  return formatUser(user.name);
+}
+`,
+    'utf8'
+  );
+}
+
+async function removeTempDir(dirPath: string): Promise<void> {
+  await fs.rm(dirPath, { recursive: true, force: true });
+}
+
+describe('indexer', () => {
+  const tempDirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.splice(0).map(removeTempDir));
+  });
+
+  it('indexes symbols and traces calls', async () => {
+    const root = await makeTempProject();
+    tempDirs.push(root);
+    await writeProjectFiles(root);
+
+    const config = createDefaultProjectConfig(root);
+    const artifact = await buildIndex(root, config);
+
+    expect(artifact.files).toHaveLength(2);
+    expect(artifact.symbols.some((symbol) => symbol.name === 'renderUser')).toBe(true);
+
+    const results = searchSymbols(artifact, 'render');
+    expect(results[0]?.symbol.qualifiedName).toBe('renderUser');
+
+    const functionResult = getFunction(artifact, 'renderUser');
+    expect(functionResult?.symbol.source).toContain('fetchUser');
+    expect(functionResult?.resolvedCalls.map((symbol) => symbol.name)).toContain('fetchUser');
+
+    const trace = traceCalls(artifact, 'renderUser', 2);
+    expect(trace?.edges.some((edge) => edge.label === 'fetchUser')).toBe(true);
+    expect(trace?.edges.some((edge) => edge.label === 'formatUser')).toBe(true);
+
+    const overview = getArchitectureOverview(artifact);
+    expect(overview.totalFiles).toBe(2);
+    expect(overview.totalSymbols).toBeGreaterThanOrEqual(3);
+
+    const sanitized = sanitizeForRemote(artifact, config);
+    expect(sanitized.symbols.every((symbol) => symbol.source === '')).toBe(true);
+  });
+});

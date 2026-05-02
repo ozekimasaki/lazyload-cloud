@@ -1,0 +1,2 @@
+score	kind	name	file	line	signature
+100	function	handleRequest	src/server.ts	12	export async function handleRequest(request: Request): Promise<Response> {
