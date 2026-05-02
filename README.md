@@ -19,6 +19,12 @@ Cloudflare-backed code context CLI for Agent Skills.
 npm install -g lazyload-cloud
 ```
 
+Pinned install for the current release:
+
+```bash
+npm install -g lazyload-cloud@0.1.2
+```
+
 ## Devbox
 
 This repository includes a `devbox.json` so `node`, `npm`, `gh`, and `bun` are available automatically inside `devbox shell`.
@@ -111,10 +117,13 @@ Because the repository exposes a top-level `skills/` directory, it is also compa
 Typical usage:
 
 ```bash
-# Preview or install from a published GitHub repository
-gh skill install OWNER/REPOSITORY lazyload-cloud --agent claude-code
-gh skill install OWNER/REPOSITORY lazyload-cloud-project --agent claude-code
-gh skill install OWNER/REPOSITORY lazyload-cloud-sync --agent claude-code
+# Install the current pinned release from GitHub
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud --pin v0.1.2 --agent claude-code
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud-project --pin v0.1.2 --agent claude-code
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud-sync --pin v0.1.2 --agent claude-code
+
+# Or follow the latest release without pinning
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud --agent claude-code
 
 # Validate skills before publishing
 gh skill publish

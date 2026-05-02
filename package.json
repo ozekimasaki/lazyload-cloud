@@ -1,6 +1,6 @@
 {
   "name": "lazyload-cloud",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cloudflare-backed code context CLI for Agent Skills",
   "type": "module",
   "bin": {
