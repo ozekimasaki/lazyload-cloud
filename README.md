@@ -279,6 +279,22 @@ This repository ships three skills:
 
 The generated skill scripts use `npx lazyload-cloud` by default, or `LAZYLOAD_CLI_BIN` when explicitly set.
 
+### Installing skills with `gh skill`
+
+If you want to install the bundled skills directly from GitHub, use:
+
+```bash
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud --pin v0.1.4 --agent claude-code
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud-project --pin v0.1.4 --agent claude-code
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud-sync --pin v0.1.4 --agent claude-code
+```
+
+To follow the latest release instead of a pinned version:
+
+```bash
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud --agent claude-code
+```
+
 ## Benchmarks
 
 Two benchmark scripts are included:

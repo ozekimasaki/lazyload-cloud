@@ -287,6 +287,22 @@ wrangler d1 execute <DB_NAME> --file cloudflare/migrations/0001_init.sql
 
 生成される skill script は既定で `npx lazyload-cloud` を使います。`LAZYLOAD_CLI_BIN` を指定すると別の binary path を使えます。
 
+### `gh skill` で直接 install する
+
+GitHub から skills を直接入れたい場合は、次のように使えます。
+
+```bash
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud --pin v0.1.4 --agent claude-code
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud-project --pin v0.1.4 --agent claude-code
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud-sync --pin v0.1.4 --agent claude-code
+```
+
+固定 version ではなく最新 release を追従したい場合:
+
+```bash
+gh skill install ozekimasaki/lazyload-cloud lazyload-cloud --agent claude-code
+```
+
 ## Benchmarks
 
 benchmark script は 2 つあります。
