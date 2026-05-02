@@ -3,6 +3,7 @@ import type {
   ClassQueryResult,
   FileListEntry,
   FunctionListResult,
+  IndexStats,
   IndexArtifact,
   ModuleDependenciesResult,
   RemoteAccessConfig,
@@ -251,6 +252,18 @@ export async function queryRemoteOverview(remote: RemoteAccessConfig) {
       headers: remote.workerApiToken ? { authorization: `Bearer ${remote.workerApiToken}` } : {},
     }
   );
+}
+
+export async function queryRemoteStats(remote: RemoteAccessConfig): Promise<IndexStats> {
+  const apiBaseUrl = remote.apiBaseUrl;
+  if (!apiBaseUrl) {
+    throw new Error('No remote API base URL configured.');
+  }
+
+  return fetchJson<IndexStats>(`${apiBaseUrl}/api/v1/projects/${remote.projectId}/stats`, {
+    method: 'GET',
+    headers: remote.workerApiToken ? { authorization: `Bearer ${remote.workerApiToken}` } : {},
+  });
 }
 
 export async function queryRemoteListFiles(

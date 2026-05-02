@@ -65,6 +65,16 @@ describe('worker handler', () => {
     const status = (await statusResponse.json()) as { symbolCount: number };
     expect(status.symbolCount).toBe(1);
 
+    const statsResponse = await handleWorkerRequest(
+      new Request('https://example.com/api/v1/projects/demo/stats'),
+      env,
+      store
+    );
+    expect(statsResponse.status).toBe(200);
+    const stats = (await statsResponse.json()) as { totalFiles: number; totalSymbols: number };
+    expect(stats.totalFiles).toBe(1);
+    expect(stats.totalSymbols).toBe(1);
+
     const queryResponse = await handleWorkerRequest(
       new Request('https://example.com/api/v1/projects/demo/query/symbols', {
         method: 'POST',

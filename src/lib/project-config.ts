@@ -4,12 +4,14 @@ import { z } from 'zod';
 import type { ProjectConfig } from '../types.js';
 
 const projectConfigSchema = z.object({
-  schemaVersion: z.literal(1).default(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]).default(2),
+  directories: z.array(z.string()).default(['.']),
   include: z.array(z.string()).default([
     '**/*.ts',
     '**/*.tsx',
     '**/*.js',
     '**/*.jsx',
+    '**/*.py',
   ]),
   exclude: z.array(z.string()).default([
     '**/node_modules/**',
@@ -18,6 +20,8 @@ const projectConfigSchema = z.object({
     '**/.git/**',
     '**/.turbo/**',
     '**/.next/**',
+    '**/venv/**',
+    '**/__pycache__/**',
     '**/coverage/**',
     '**/*.min.js',
     '**/*.map',
@@ -52,7 +56,13 @@ const projectConfigSchema = z.object({
       directory: z.string().default('cloudflare'),
     })
     .default({}),
-});
+}).transform((config) => ({
+  ...config,
+  schemaVersion: 2 as const,
+  directories: config.directories?.length ? config.directories : ['.'],
+  include: config.include.includes('**/*.py') ? config.include : [...config.include, '**/*.py'],
+  exclude: [...new Set([...config.exclude, '**/venv/**', '**/__pycache__/**'])],
+}));
 
 export const PROJECT_CONFIG_FILE = 'lazyload.config.json';
 

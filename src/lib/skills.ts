@@ -141,13 +141,27 @@ database_id = "replace-me"
 [[r2_buckets]]
 binding = "INDEX_BUCKET"
 bucket_name = "lazyload-cloud-indexes"
+
+[[queues.producers]]
+binding = "INDEX_QUEUE"
+queue = "${config.remote.projectId}-index"
+
+[[queues.consumers]]
+queue = "${config.remote.projectId}-index"
+
+[durable_objects]
+bindings = [{ name = "PROJECT_LOCKS", class_name = "ProjectLock" }]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ProjectLock"]
 `);
 }
 
 function renderCloudflareReadme(): string {
   return ensureTrailingNewline(`# Cloudflare worker scaffold
 
-1. Edit \`wrangler.toml\` with your real D1 database ID and R2 bucket name.
+1. Edit \`wrangler.toml\` with your real D1 database ID, R2 bucket name, queue name, and Durable Object class settings.
 2. Set the write token:
 
 \`\`\`bash
@@ -165,6 +179,13 @@ wrangler d1 migrations apply lazyload-cloud
 \`\`\`bash
 wrangler deploy
 \`\`\`
+
+This scaffold is ready for:
+
+- D1 metadata and aggregate stats
+- R2 snapshot storage
+- Queues for async reindex / recommendation rebuilds
+- Durable Objects for project-scoped debounce and locking
 `);
 }
 
@@ -198,6 +219,17 @@ CREATE TABLE IF NOT EXISTS project_snapshots (
   object_key TEXT NOT NULL,
   created_at TEXT NOT NULL,
   PRIMARY KEY (project_id, version)
+);
+
+CREATE TABLE IF NOT EXISTS project_stats (
+  project_id TEXT PRIMARY KEY,
+  generated_at TEXT NOT NULL,
+  artifact_size_bytes INTEGER NOT NULL,
+  total_functions INTEGER NOT NULL,
+  total_classes INTEGER NOT NULL,
+  total_interfaces INTEGER NOT NULL,
+  total_types INTEGER NOT NULL,
+  total_variables INTEGER NOT NULL
 );`),
     },
     {

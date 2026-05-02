@@ -3,7 +3,9 @@ import path from 'node:path';
 import type {
   AuthInputOverrides,
   ConfigSource,
+  DirectCloudflareConfig,
   ProjectConfig,
+  RemoteMode,
   ResolvedAuthInput,
   ResolvedRuntimeConfig,
   ResolvedValue,
@@ -108,6 +110,13 @@ function pickBoolean(
   return resolvedValue(false, 'default');
 }
 
+function parseRemoteMode(value: string | undefined): RemoteMode | undefined {
+  if (value === 'worker' || value === 'direct') {
+    return value;
+  }
+  return undefined;
+}
+
 function buildResolvedProjectConfig(projectConfig: ProjectConfig, runtime: ResolvedRuntimeConfig['resolved']): ProjectConfig {
   return {
     ...projectConfig,
@@ -130,6 +139,11 @@ function buildResolvedUserConfig(userConfig: UserConfig, runtime: ResolvedRuntim
     apiBaseUrl: runtime.apiBaseUrl.value,
     workerApiToken: runtime.workerApiToken.value,
     cloudflareApiToken: runtime.cloudflareApiToken.value,
+    accountId: runtime.accountId.value,
+    d1DatabaseId: runtime.d1DatabaseId.value,
+    r2Bucket: runtime.r2Bucket.value,
+    r2AccessKeyId: runtime.r2AccessKeyId.value,
+    r2SecretAccessKey: runtime.r2SecretAccessKey.value,
   };
 }
 
@@ -180,14 +194,81 @@ export async function resolveRuntimeConfig(
       { value: parseBooleanOverride(process.env.LAZYLOAD_UPLOAD_SOURCE), source: 'env' },
       { value: projectConfig.privacy.uploadSource, source: 'project-config' }
     ),
+    accountId: pickOptionalString(
+      { value: overrides.accountId, source: 'cli' },
+      { value: envFile.LAZYLOAD_ACCOUNT_ID ?? envFile.CLOUDFLARE_ACCOUNT_ID, source: 'env-file' },
+      { value: process.env.LAZYLOAD_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID, source: 'env' },
+      { value: userConfig.accountId, source: 'user-config' }
+    ),
+    d1DatabaseId: pickOptionalString(
+      { value: overrides.d1DatabaseId, source: 'cli' },
+      { value: envFile.LAZYLOAD_D1_DATABASE_ID, source: 'env-file' },
+      { value: process.env.LAZYLOAD_D1_DATABASE_ID, source: 'env' },
+      { value: userConfig.d1DatabaseId, source: 'user-config' }
+    ),
+    r2Bucket: pickOptionalString(
+      { value: overrides.r2Bucket, source: 'cli' },
+      { value: envFile.LAZYLOAD_R2_BUCKET, source: 'env-file' },
+      { value: process.env.LAZYLOAD_R2_BUCKET, source: 'env' },
+      { value: userConfig.r2Bucket, source: 'user-config' }
+    ),
+    r2AccessKeyId: pickOptionalString(
+      { value: overrides.r2AccessKeyId, source: 'cli' },
+      { value: envFile.LAZYLOAD_R2_ACCESS_KEY_ID, source: 'env-file' },
+      { value: process.env.LAZYLOAD_R2_ACCESS_KEY_ID, source: 'env' },
+      { value: userConfig.r2AccessKeyId, source: 'user-config' }
+    ),
+    r2SecretAccessKey: pickOptionalString(
+      { value: overrides.r2SecretAccessKey, source: 'cli' },
+      { value: envFile.LAZYLOAD_R2_SECRET_ACCESS_KEY, source: 'env-file' },
+      { value: process.env.LAZYLOAD_R2_SECRET_ACCESS_KEY, source: 'env' },
+      { value: userConfig.r2SecretAccessKey, source: 'user-config' }
+    ),
   };
 
+  const remoteMode = resolveRemoteMode(overrides.remoteMode, envFile, runtime);
+
+  const fullRuntime = { ...runtime, remoteMode };
+
   return {
-    projectConfig: buildResolvedProjectConfig(projectConfig, runtime),
-    userConfig: buildResolvedUserConfig(userConfig, runtime),
+    projectConfig: buildResolvedProjectConfig(projectConfig, fullRuntime),
+    userConfig: buildResolvedUserConfig(userConfig, fullRuntime),
     envFilePath,
-    resolved: runtime,
+    resolved: fullRuntime,
   };
+}
+
+function resolveRemoteMode(
+  override: RemoteMode | undefined,
+  envFile: Record<string, string>,
+  partial: Omit<ResolvedRuntimeConfig['resolved'], 'remoteMode'>
+): ResolvedValue<RemoteMode> {
+  if (override) {
+    return resolvedValue(override, 'cli');
+  }
+
+  const envFileMode = parseRemoteMode(envFile.LAZYLOAD_REMOTE_MODE);
+  if (envFileMode) {
+    return resolvedValue(envFileMode, 'env-file');
+  }
+
+  const envMode = parseRemoteMode(process.env.LAZYLOAD_REMOTE_MODE);
+  if (envMode) {
+    return resolvedValue(envMode, 'env');
+  }
+
+  const hasDirectCredentials =
+    partial.accountId.value &&
+    partial.d1DatabaseId.value &&
+    partial.r2Bucket.value &&
+    partial.r2AccessKeyId.value &&
+    partial.r2SecretAccessKey.value;
+
+  if (hasDirectCredentials) {
+    return resolvedValue<RemoteMode>('direct', 'default');
+  }
+
+  return resolvedValue<RemoteMode>('worker', 'default');
 }
 
 export async function resolveAuthInput(overrides: AuthInputOverrides = {}): Promise<ResolvedAuthInput> {
@@ -214,6 +295,36 @@ export async function resolveAuthInput(overrides: AuthInputOverrides = {}): Prom
       { value: envFile.LAZYLOAD_CLOUDFLARE_API_TOKEN ?? envFile.CLOUDFLARE_API_TOKEN, source: 'env-file' },
       { value: process.env.LAZYLOAD_CLOUDFLARE_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN, source: 'env' },
       { value: userConfig.cloudflareApiToken, source: 'user-config' }
+    ),
+    accountId: pickOptionalString(
+      { value: overrides.accountId, source: 'cli' },
+      { value: envFile.LAZYLOAD_ACCOUNT_ID ?? envFile.CLOUDFLARE_ACCOUNT_ID, source: 'env-file' },
+      { value: process.env.LAZYLOAD_ACCOUNT_ID ?? process.env.CLOUDFLARE_ACCOUNT_ID, source: 'env' },
+      { value: userConfig.accountId, source: 'user-config' }
+    ),
+    d1DatabaseId: pickOptionalString(
+      { value: overrides.d1DatabaseId, source: 'cli' },
+      { value: envFile.LAZYLOAD_D1_DATABASE_ID, source: 'env-file' },
+      { value: process.env.LAZYLOAD_D1_DATABASE_ID, source: 'env' },
+      { value: userConfig.d1DatabaseId, source: 'user-config' }
+    ),
+    r2Bucket: pickOptionalString(
+      { value: overrides.r2Bucket, source: 'cli' },
+      { value: envFile.LAZYLOAD_R2_BUCKET, source: 'env-file' },
+      { value: process.env.LAZYLOAD_R2_BUCKET, source: 'env' },
+      { value: userConfig.r2Bucket, source: 'user-config' }
+    ),
+    r2AccessKeyId: pickOptionalString(
+      { value: overrides.r2AccessKeyId, source: 'cli' },
+      { value: envFile.LAZYLOAD_R2_ACCESS_KEY_ID, source: 'env-file' },
+      { value: process.env.LAZYLOAD_R2_ACCESS_KEY_ID, source: 'env' },
+      { value: userConfig.r2AccessKeyId, source: 'user-config' }
+    ),
+    r2SecretAccessKey: pickOptionalString(
+      { value: overrides.r2SecretAccessKey, source: 'cli' },
+      { value: envFile.LAZYLOAD_R2_SECRET_ACCESS_KEY, source: 'env-file' },
+      { value: process.env.LAZYLOAD_R2_SECRET_ACCESS_KEY, source: 'env' },
+      { value: userConfig.r2SecretAccessKey, source: 'user-config' }
     ),
   };
 }

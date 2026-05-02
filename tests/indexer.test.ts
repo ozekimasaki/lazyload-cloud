@@ -2,7 +2,17 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildIndex, getArchitectureOverview, getFunction, sanitizeForRemote, searchSymbols, traceCalls } from '../src/lib/indexer.js';
+import {
+  buildIndex,
+  findReferences,
+  getArchitectureOverview,
+  getFunction,
+  getIndexStats,
+  getRelatedContext,
+  sanitizeForRemote,
+  searchSymbols,
+  traceCalls,
+} from '../src/lib/indexer.js';
 import { createDefaultProjectConfig } from '../src/lib/project-config.js';
 
 async function makeTempProject(): Promise<string> {
@@ -73,5 +83,31 @@ describe('indexer', () => {
 
     const sanitized = sanitizeForRemote(artifact, config);
     expect(sanitized.symbols.every((symbol) => symbol.source === '')).toBe(true);
+  });
+
+  it('indexes python files and exposes them through stats and related context', async () => {
+    const root = await makeTempProject();
+    tempDirs.push(root);
+    await fs.mkdir(path.join(root, 'src'), { recursive: true });
+    await fs.writeFile(
+      path.join(root, 'src', 'text_tools.py'),
+      `def cleanup(value):
+    return value.strip().lower()
+
+def normalize_text(value):
+    return cleanup(value)
+`,
+      'utf8'
+    );
+
+    const config = createDefaultProjectConfig(root);
+    const artifact = await buildIndex(root, config);
+
+    expect(artifact.files.some((file) => file.language === 'python' && file.path === 'src/text_tools.py')).toBe(true);
+    expect(artifact.symbols.some((symbol) => symbol.language === 'python' && symbol.name === 'normalize_text')).toBe(true);
+    expect(searchSymbols(artifact, 'normalize')[0]?.symbol.name).toBe('normalize_text');
+    expect(getRelatedContext(artifact, 'normalize_text')?.relatedCalls.map((symbol) => symbol.name)).toContain('cleanup');
+    expect(findReferences(artifact, 'cleanup').matches.some((match) => match.filePath === 'src/text_tools.py')).toBe(true);
+    expect(getIndexStats(artifact).byLanguage.python.files).toBe(1);
   });
 });

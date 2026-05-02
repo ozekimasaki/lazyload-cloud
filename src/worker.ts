@@ -1,10 +1,11 @@
-import type { CloudStore, IndexArtifact, WorkerEnvLike } from './types.js';
+import type { CloudStore, IndexArtifact, SourceLanguage, WorkerEnvLike } from './types.js';
 import { InMemoryCloudStore, R2D1CloudStore } from './lib/cloud-store.js';
 import {
   findReferences,
   getArchitectureOverview,
   getClass,
   getFunction,
+  getIndexStats,
   getModuleDependencies,
   getRelatedContext,
   listFiles,
@@ -88,6 +89,14 @@ export async function handleWorkerRequest(request: Request, env: WorkerEnvLike, 
       return json(getArchitectureOverview(artifact));
     }
 
+    if (request.method === 'GET' && action === 'stats') {
+      const artifact = await activeStore.getIndex(projectId);
+      if (!artifact) {
+        return notFound();
+      }
+      return json(getIndexStats(artifact));
+    }
+
     if (request.method === 'POST' && action === 'query') {
       const artifact = await activeStore.getIndex(projectId);
       if (!artifact) {
@@ -100,11 +109,13 @@ export async function handleWorkerRequest(request: Request, env: WorkerEnvLike, 
         return json(searchSymbols(artifact, body.query, { limit: body.limit ?? 20 }));
       }
       if (mode === 'list-files') {
-        const body = await parseBody<{ limit?: number; language?: 'typescript' | 'javascript'; pattern?: string }>(request);
+        const body = await parseBody<{ limit?: number; language?: SourceLanguage; pattern?: string }>(request);
         return json(listFiles(artifact, { limit: body.limit ?? 50, language: body.language, pattern: body.pattern }));
       }
       if (mode === 'list-functions') {
-        const body = await parseBody<{ limit?: number; language?: 'typescript' | 'javascript'; exported?: boolean; filePattern?: string }>(request);
+        const body = await parseBody<{ limit?: number; language?: SourceLanguage; exported?: boolean; filePattern?: string }>(
+          request
+        );
         return json(
           listFunctions(artifact, {
             limit: body.limit ?? 50,

@@ -10,6 +10,11 @@ const userConfigSchema = z.object({
   apiToken: z.string().min(1).optional(),
   workerApiToken: z.string().min(1).optional(),
   cloudflareApiToken: z.string().min(1).optional(),
+  accountId: z.string().min(1).optional(),
+  d1DatabaseId: z.string().min(1).optional(),
+  r2Bucket: z.string().min(1).optional(),
+  r2AccessKeyId: z.string().min(1).optional(),
+  r2SecretAccessKey: z.string().min(1).optional(),
 });
 
 export function getUserConfigPath(): string {
@@ -28,6 +33,11 @@ export async function loadUserConfig(): Promise<UserConfig> {
       apiBaseUrl: parsed.apiBaseUrl,
       workerApiToken: parsed.workerApiToken ?? parsed.apiToken,
       cloudflareApiToken: parsed.cloudflareApiToken,
+      accountId: parsed.accountId,
+      d1DatabaseId: parsed.d1DatabaseId,
+      r2Bucket: parsed.r2Bucket,
+      r2AccessKeyId: parsed.r2AccessKeyId,
+      r2SecretAccessKey: parsed.r2SecretAccessKey,
     };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -50,11 +60,17 @@ export async function saveUserConfig(config: UserConfig): Promise<string> {
     apiBaseUrl: config.apiBaseUrl,
     workerApiToken: config.workerApiToken,
     cloudflareApiToken: config.cloudflareApiToken,
+    accountId: config.accountId,
+    d1DatabaseId: config.d1DatabaseId,
+    r2Bucket: config.r2Bucket,
+    r2AccessKeyId: config.r2AccessKeyId,
+    r2SecretAccessKey: config.r2SecretAccessKey,
   });
   await fs.writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, {
     encoding: 'utf8',
     mode: 0o600,
   });
+  await fs.chmod(filePath, 0o600);
   return filePath;
 }
 

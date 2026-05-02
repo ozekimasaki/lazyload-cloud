@@ -5,6 +5,7 @@ import type {
   FileListEntry,
   FunctionQueryResult,
   FunctionListResult,
+  IndexStats,
   ModuleDependenciesResult,
   OutputFormat,
   ReferencesResult,
@@ -179,9 +180,17 @@ export function formatRelatedContext(result: RelatedContextResult | null, format
       '',
       ...result.relatedCalls.map((call) => `- ${call.qualifiedName}`),
       '',
+      '### Related types',
+      '',
+      ...result.relatedTypes.map((typeSymbol) => `- ${typeSymbol.qualifiedName}`),
+      '',
       '### Siblings',
       '',
       ...result.siblings.map((sibling) => `- ${sibling.qualifiedName}`),
+      '',
+      '### Tests',
+      '',
+      ...result.tests.map((testRef) => `- ${testRef.filePath}:${testRef.line}`),
       '',
     ].join('\n');
   }
@@ -190,10 +199,14 @@ export function formatRelatedContext(result: RelatedContextResult | null, format
     `symbol\t${result.symbol.qualifiedName}`,
     'relatedCalls',
     ...result.relatedCalls.map((call) => `${call.qualifiedName}\t${call.filePath}:${call.startLine}`),
+    'relatedTypes',
+    ...result.relatedTypes.map((typeSymbol) => `${typeSymbol.qualifiedName}\t${typeSymbol.filePath}:${typeSymbol.startLine}`),
     'siblings',
     ...result.siblings.map((sibling) => `${sibling.qualifiedName}\t${sibling.filePath}:${sibling.startLine}`),
     'references',
     ...result.references.map((ref) => `${ref.kind}\t${ref.filePath}:${ref.line}\t${ref.snippet}`),
+    'tests',
+    ...result.tests.map((ref) => `${ref.filePath}:${ref.line}\t${ref.snippet}`),
   ];
   return `${lines.join('\n')}\n`;
 }
@@ -384,5 +397,59 @@ export function formatStatus(
   } else {
     lines.push('remote\tunconfigured');
   }
+  return `${lines.join('\n')}\n`;
+}
+
+export function formatIndexStats(stats: IndexStats, format: OutputFormat): string {
+  if (format === 'json') {
+    return asJson(stats);
+  }
+
+  if (format === 'markdown') {
+    const lines = [
+      '# Index statistics',
+      '',
+      `- Generated: ${stats.generatedAt}`,
+      `- Total files: ${stats.totalFiles}`,
+      `- Total symbols: ${stats.totalSymbols}`,
+      `- Total functions: ${stats.totalFunctions}`,
+      `- Total classes: ${stats.totalClasses}`,
+      `- Total interfaces: ${stats.totalInterfaces}`,
+      `- Total types: ${stats.totalTypes}`,
+      `- Artifact size: ${Math.round(stats.artifactSizeBytes / 1024)} KB`,
+      '',
+      '| Language | Files | Functions | Classes | Interfaces | Types | Variables |',
+      '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+    ];
+
+    for (const [language, value] of Object.entries(stats.byLanguage)) {
+      lines.push(
+        `| ${language} | ${value.files} | ${value.functions} | ${value.classes} | ${value.interfaces} | ${value.typeAliases} | ${value.variables} |`
+      );
+    }
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  const lines = [
+    `generatedAt\t${stats.generatedAt}`,
+    `totalFiles\t${stats.totalFiles}`,
+    `totalSymbols\t${stats.totalSymbols}`,
+    `totalFunctions\t${stats.totalFunctions}`,
+    `totalClasses\t${stats.totalClasses}`,
+    `totalInterfaces\t${stats.totalInterfaces}`,
+    `totalTypes\t${stats.totalTypes}`,
+    `artifactSizeBytes\t${stats.artifactSizeBytes}`,
+  ];
+
+  for (const [language, value] of Object.entries(stats.byLanguage)) {
+    lines.push(`language:${language}:files\t${value.files}`);
+    lines.push(`language:${language}:functions\t${value.functions}`);
+    lines.push(`language:${language}:classes\t${value.classes}`);
+    lines.push(`language:${language}:interfaces\t${value.interfaces}`);
+    lines.push(`language:${language}:types\t${value.typeAliases}`);
+    lines.push(`language:${language}:variables\t${value.variables}`);
+  }
+
   return `${lines.join('\n')}\n`;
 }

@@ -45,6 +45,8 @@ describe('init scaffolding', () => {
 
     const wranglerToml = await readText(path.join(root, config.cloudflare.directory, 'wrangler.toml'));
     expect(wranglerToml).toContain('[[d1_databases]]');
+    expect(wranglerToml).toContain('[[queues.producers]]');
+    expect(wranglerToml).toContain('[durable_objects]');
 
     const gitignore = await readText(path.join(root, '.gitignore'));
     expect(gitignore).toContain('.lazyload/');

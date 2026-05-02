@@ -1,6 +1,6 @@
 {
   "name": "lazyload-cloud",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Cloudflare-backed code context CLI for Agent Skills",
   "type": "module",
   "bin": {
@@ -19,6 +19,7 @@
     }
   },
   "files": [
+    "benchmarks",
     "dist",
     "skills",
     "README.md",
@@ -27,6 +28,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "bench:quick": "node benchmarks/quick.mjs",
+    "bench:compare": "node benchmarks/compare.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build && npm test"
@@ -49,8 +52,13 @@
     "access": "public"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1041.0",
+    "chokidar": "^5.0.0",
     "commander": "^12.1.0",
     "fast-glob": "^3.3.3",
+    "tree-sitter": "^0.25.0",
+    "tree-sitter-python": "^0.25.0",
+    "ts-morph": "^28.0.0",
     "typescript": "^5.8.3",
     "zod": "^3.25.28"
   },

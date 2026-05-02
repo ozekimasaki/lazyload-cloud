@@ -1,6 +1,9 @@
-export type SymbolKind = 'function' | 'class' | 'interface' | 'method' | 'type' | 'variable';
-export type SourceLanguage = 'typescript' | 'javascript';
+export type SymbolKind = 'function' | 'class' | 'interface' | 'method' | 'type' | 'variable' | 'constructor' | 'callback';
+export type SourceLanguage = 'typescript' | 'javascript' | 'python';
 export type OutputFormat = 'json' | 'compact' | 'markdown';
+
+export type ReferenceKind = 'call' | 'read' | 'write' | 'type' | 'import';
+export type TypeRelationshipKind = 'extends' | 'implements' | 'mixin' | 'references-type';
 
 export interface IndexedSymbol {
   id: string;
@@ -13,10 +16,16 @@ export interface IndexedSymbol {
   signature: string;
   startLine: number;
   endLine: number;
-  containerName?: string;
+  containerName?: string | undefined;
   source: string;
   calls: string[];
   imports: string[];
+  documentation?: string | undefined;
+  parameters: string[];
+  returnType?: string | undefined;
+  typeReferences: string[];
+  extendsTypes: string[];
+  implementsTypes: string[];
 }
 
 export interface IndexedFile {
@@ -25,16 +34,77 @@ export interface IndexedFile {
   imports: string[];
   symbolIds: string[];
   hash: string;
+  size: number;
+}
+
+export interface IndexedReference {
+  id: string;
+  symbolId?: string | undefined;
+  symbolName: string;
+  referencingFile: string;
+  referencingSymbolId?: string | undefined;
+  referencingSymbolName?: string | undefined;
+  line: number;
+  column: number;
+  kind: ReferenceKind;
+  snippet: string;
+}
+
+export interface CallGraphEdge {
+  id: string;
+  callerSymbolId: string;
+  callerName: string;
+  calleeName: string;
+  calleeSymbolId?: string | undefined;
+  callCount: number;
+  isAsync: boolean;
+  isConditional: boolean;
+}
+
+export interface TypeRelationship {
+  id: string;
+  sourceSymbolId: string;
+  sourceName: string;
+  targetName: string;
+  targetSymbolId?: string | undefined;
+  relationshipKind: TypeRelationshipKind;
+}
+
+export interface LanguageStats {
+  files: number;
+  functions: number;
+  classes: number;
+  interfaces: number;
+  typeAliases: number;
+  variables: number;
+}
+
+export interface IndexStats {
+  totalFiles: number;
+  totalSymbols: number;
+  totalFunctions: number;
+  totalClasses: number;
+  totalInterfaces: number;
+  totalVariables: number;
+  totalTypes: number;
+  byLanguage: Record<SourceLanguage, LanguageStats>;
+  generatedAt: string;
+  artifactSizeBytes: number;
 }
 
 export interface IndexArtifact {
-  schemaVersion: '1';
+  schemaVersion: '2';
   generatedAt: string;
   rootDir: string;
+  directories: string[];
   include: string[];
   exclude: string[];
   files: IndexedFile[];
   symbols: IndexedSymbol[];
+  references: IndexedReference[];
+  callGraph: CallGraphEdge[];
+  typeRelationships: TypeRelationship[];
+  stats: IndexStats;
 }
 
 export interface SearchOptions {
@@ -63,15 +133,17 @@ export interface RelatedContextResult {
   symbol: IndexedSymbol;
   siblings: IndexedSymbol[];
   relatedCalls: IndexedSymbol[];
+  relatedTypes: IndexedSymbol[];
   references: ReferenceMatch[];
+  tests: ReferenceMatch[];
 }
 
 export interface ReferenceMatch {
   filePath: string;
   line: number;
-  kind: 'symbol' | 'import';
+  kind: ReferenceKind;
   snippet: string;
-  symbolId?: string;
+  symbolId?: string | undefined;
 }
 
 export interface ReferencesResult {
@@ -108,6 +180,7 @@ export interface ArchitectureOverview {
   totalSymbols: number;
   exportedSymbols: number;
   byKind: Record<SymbolKind, number>;
+  byLanguage: Record<SourceLanguage, LanguageStats>;
   topFiles: Array<{
     path: string;
     symbolCount: number;
@@ -145,7 +218,8 @@ export interface SuggestedRelatedResult {
 }
 
 export interface ProjectConfig {
-  schemaVersion: 1;
+  schemaVersion: 2;
+  directories: string[];
   include: string[];
   exclude: string[];
   outputPath: string;
@@ -167,10 +241,26 @@ export interface ProjectConfig {
   };
 }
 
+export type RemoteMode = 'worker' | 'direct';
+
 export interface UserConfig {
   schemaVersion: 1;
   apiBaseUrl?: string | undefined;
   workerApiToken?: string | undefined;
+  cloudflareApiToken?: string | undefined;
+  accountId?: string | undefined;
+  d1DatabaseId?: string | undefined;
+  r2Bucket?: string | undefined;
+  r2AccessKeyId?: string | undefined;
+  r2SecretAccessKey?: string | undefined;
+}
+
+export interface DirectCloudflareConfig {
+  accountId: string;
+  d1DatabaseId: string;
+  r2Bucket: string;
+  r2AccessKeyId: string;
+  r2SecretAccessKey: string;
   cloudflareApiToken?: string | undefined;
 }
 
@@ -196,6 +286,12 @@ export interface RuntimeOverrides {
   projectId?: string | undefined;
   preferRemote?: boolean | undefined;
   uploadSource?: boolean | undefined;
+  accountId?: string | undefined;
+  d1DatabaseId?: string | undefined;
+  r2Bucket?: string | undefined;
+  r2AccessKeyId?: string | undefined;
+  r2SecretAccessKey?: string | undefined;
+  remoteMode?: RemoteMode | undefined;
 }
 
 export interface AuthInputOverrides {
@@ -203,6 +299,11 @@ export interface AuthInputOverrides {
   apiBaseUrl?: string | undefined;
   workerApiToken?: string | undefined;
   cloudflareApiToken?: string | undefined;
+  accountId?: string | undefined;
+  d1DatabaseId?: string | undefined;
+  r2Bucket?: string | undefined;
+  r2AccessKeyId?: string | undefined;
+  r2SecretAccessKey?: string | undefined;
 }
 
 export interface ResolvedRuntimeConfig {
@@ -216,6 +317,12 @@ export interface ResolvedRuntimeConfig {
     cloudflareApiToken: ResolvedValue<string | undefined>;
     preferRemote: ResolvedValue<boolean>;
     uploadSource: ResolvedValue<boolean>;
+    accountId: ResolvedValue<string | undefined>;
+    d1DatabaseId: ResolvedValue<string | undefined>;
+    r2Bucket: ResolvedValue<string | undefined>;
+    r2AccessKeyId: ResolvedValue<string | undefined>;
+    r2SecretAccessKey: ResolvedValue<string | undefined>;
+    remoteMode: ResolvedValue<RemoteMode>;
   };
 }
 
@@ -224,6 +331,11 @@ export interface ResolvedAuthInput {
   apiBaseUrl: ResolvedValue<string | undefined>;
   workerApiToken: ResolvedValue<string | undefined>;
   cloudflareApiToken: ResolvedValue<string | undefined>;
+  accountId: ResolvedValue<string | undefined>;
+  d1DatabaseId: ResolvedValue<string | undefined>;
+  r2Bucket: ResolvedValue<string | undefined>;
+  r2AccessKeyId: ResolvedValue<string | undefined>;
+  r2SecretAccessKey: ResolvedValue<string | undefined>;
 }
 
 export interface RemoteAccessConfig {
@@ -267,8 +379,31 @@ export interface R2BucketLike {
   put(key: string, value: string): Promise<void>;
 }
 
+export interface QueueSendResultLike {
+  id?: string;
+}
+
+export interface QueueLike<T = unknown> {
+  send(message: T): Promise<QueueSendResultLike | void>;
+}
+
+export interface DurableObjectIdLike {
+  toString(): string;
+}
+
+export interface DurableObjectStubLike {
+  fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+}
+
+export interface DurableObjectNamespaceLike {
+  idFromName(name: string): DurableObjectIdLike;
+  get(id: DurableObjectIdLike): DurableObjectStubLike;
+}
+
 export interface WorkerEnvLike {
   DB?: D1DatabaseLike;
   INDEX_BUCKET?: R2BucketLike;
   API_TOKEN?: string;
+  INDEX_QUEUE?: QueueLike<unknown>;
+  PROJECT_LOCKS?: DurableObjectNamespaceLike;
 }
