@@ -1,60 +1,93 @@
 # lazyload-cloud
 
-Cloudflare 向けのコードコンテキスト CLI です。Agent Skills と組み合わせて使うことを前提に、ローカルの JavaScript / TypeScript / Python プロジェクトを index 化し、必要なコード情報だけを素早く引けるようにします。
+[日本語版はこちら](./README.ja.md)
 
-この CLI は次の 3 つの使い方に対応しています。
+`lazyload-cloud` is a Node CLI for building and querying compact code context from local projects. It indexes **TypeScript, JavaScript, and Python**, exposes a focused query surface for code exploration, and can work in three modes:
 
-1. **ローカル専用**: index をローカルに保存して使う
-2. **Cloudflare Worker 経由**: Worker API に sync / query する
-3. **D1 / R2 直結**: Worker を deploy せず、CLI から D1 / R2 を直接使う
+1. **Local mode** — read and query the local index only
+2. **Worker mode** — sync/query through a deployed Cloudflare Worker
+3. **Direct D1/R2 mode** — talk to Cloudflare storage directly from the CLI, without deploying a Worker
 
-## 主な機能
+## Requirements
 
-- JS / TS / Python の index 作成
-- symbols / functions / classes / references / related context / call trace / type trace の取得
-- `watch`, `stats`, `init --yes` 対応
-- **13 個の互換コマンド**を CLI から利用可能
-- Agent Skills 用の scaffold 生成
-- Cloudflare Worker 経由の remote 利用
-- **Worker なしの direct D1 / R2 利用**
+- **Node.js 20+**
 
-## インストール
-
-```bash
-npm install -g lazyload-cloud
-```
-
-現行 version を固定して入れる場合:
+## Install
 
 ```bash
 npm install -g lazyload-cloud@0.1.4
 ```
 
-## クイックスタート
+You can also run it with `npx lazyload-cloud`.
+
+## What this repository provides
+
+- A CLI package: `lazyload-cloud`
+- A Worker export: `lazyload-cloud/worker`
+- Built-in Agent Skills under `skills/`
+- Benchmark scripts under `benchmarks/`
+
+## Core features
+
+- Indexes TypeScript, JavaScript, and Python source files
+- Stores a local index at `.lazyload/index.json`
+- Supports `json`, `compact`, and `markdown` output formats
+- Provides query commands for:
+  - symbol search
+  - function / class lookup
+  - related context
+  - references
+  - call tracing
+  - type tracing
+  - module dependencies
+  - architecture overview
+  - index statistics
+- Supports file watching with automatic re-indexing
+- Can scaffold Cloudflare assets and Agent Skills with `init`
+
+## Quick start
 
 ```bash
-lazyload-cloud init
+lazyload-cloud init --yes
 lazyload-cloud index
 lazyload-cloud stats --format compact
 lazyload-cloud query symbols handler --format compact
 lazyload-cloud overview --format compact
 ```
 
-## コマンド概要
+## Main commands
 
-- `init` - `lazyload.config.json`、skills、Cloudflare scaffold、補助ドキュメントを生成
-- `auth login|logout|status` - 認証情報の保存 / 削除 / 確認
-- `index` - `.lazyload/index.json` を作成
-- `watch` - ファイル変更を監視して再 index
-- `stats` - local / remote の統計を表示
-- `query` - symbol 検索や function / class / trace を取得
-- `overview` - index 全体の概要を表示
-- `sync` - local index を Cloudflare backend へ送信
-- `status` - local / remote の状態確認
-- `config inspect` - 解決済み設定と source を表示
-- `doctor` - よくある設定ミスを診断
+| Command | Purpose |
+| --- | --- |
+| `init` | Create `lazyload.config.json`, skills, Cloudflare scaffold, and onboarding docs |
+| `auth login` / `logout` / `status` | Manage stored auth/config values |
+| `index` | Build the local index |
+| `watch` | Rebuild on file changes |
+| `stats` | Show local or remote index stats |
+| `query` | Run the primary query interface |
+| `overview` | Show project-level architecture summary |
+| `sync` | Upload the current index to the configured remote backend |
+| `status` | Show local and remote status |
+| `config inspect` | Show resolved config values and their sources |
+| `doctor` | Check for common setup problems |
 
-### 13 compatibility commands
+## Query surface
+
+The CLI exposes query helpers through the `query` command group and compatibility aliases.
+
+### Primary query commands
+
+- `query symbols <query>`
+- `query function <name>`
+- `query class <name>`
+- `query related-context <name>`
+- `query references <name>`
+- `query calls <name>`
+- `query types <name>`
+- `query module-dependencies <module-path>`
+- `query suggest-related <name>`
+
+### Compatibility commands
 
 - `list-files`
 - `list-functions`
@@ -70,9 +103,9 @@ lazyload-cloud overview --format compact
 - `suggest-related`
 - `sync-index`
 
-## ローカルだけで使う場合
+## Local mode
 
-Cloudflare は不要です。`index`, `watch`, `stats`, `query`, `overview` はローカル index だけで動きます。
+Local mode does not require Cloudflare.
 
 ```bash
 lazyload-cloud init --yes
@@ -80,22 +113,62 @@ lazyload-cloud index
 lazyload-cloud query symbols render --format compact
 ```
 
-## Cloudflare Worker を使う場合
+If the local index is missing, commands fail with a clear message telling you to run `lazyload-cloud index` first.
 
-`init` で `cloudflare/` ディレクトリが生成されます。
+## Configuration
 
-- `worker.ts` - bundled Worker handler の re-export
-- `wrangler.toml` - Worker 用設定
-- `migrations/0001_init.sql` - D1 schema
+Project configuration lives in `lazyload.config.json`.
 
-deploy 例:
+Default behavior includes:
 
-```bash
-wrangler d1 migrations apply lazyload-cloud
-wrangler deploy
-```
+- project directories: `["."]`
+- output path: `.lazyload/index.json`
+- include patterns:
+  - `**/*.ts`
+  - `**/*.tsx`
+  - `**/*.js`
+  - `**/*.jsx`
+  - `**/*.py`
+- exclude patterns for common generated directories such as `node_modules`, `dist`, `build`, `.git`, `coverage`, `venv`, and `__pycache__`
 
-認証設定:
+Notable user-facing settings:
+
+- `remote.projectId`
+- `remote.preferRemote`
+- `privacy.uploadSource`
+
+When `privacy.uploadSource` is `false`, remote sync strips symbol source and documentation from the uploaded artifact.
+
+## Auth and config resolution
+
+Stored auth lives at:
+
+- `~/.config/lazyload-cloud/auth.json`
+- or `$XDG_CONFIG_HOME/lazyload-cloud/auth.json`
+
+The auth file is written with restrictive permissions (`0600`).
+
+Resolution precedence is:
+
+1. CLI flags
+2. `--env-file`
+3. `process.env`
+4. user auth file
+5. project config
+6. defaults
+
+`.env` files are **not** auto-loaded. Use `--env-file` explicitly.
+
+## Worker mode
+
+Worker mode uses a deployed Cloudflare Worker as the remote API.
+
+### Required values
+
+- API base URL
+- Worker bearer token
+
+### Example
 
 ```bash
 lazyload-cloud auth login \
@@ -104,10 +177,27 @@ lazyload-cloud auth login \
   --cloudflare-api-token <cloudflare-api-token>
 ```
 
-## D1 / R2 直結モード（Worker 不要）
+In Worker mode, the Worker token is the credential used for remote API requests.
 
-Worker を deploy せずに、CLI から直接 D1 / R2 を使えます。  
-この場合は **R2 に artifact を保存**し、必要に応じて **D1 に project metadata を保存**します。
+## Direct D1/R2 mode
+
+Direct mode skips the Worker and talks to Cloudflare storage directly.
+
+### Required values
+
+- Cloudflare account ID
+- D1 database ID
+- R2 bucket name
+- R2 access key ID
+- R2 secret access key
+
+Optional:
+
+- Cloudflare API token
+
+The Cloudflare API token is used for D1 metadata reads/writes. R2 access uses the S3-compatible credentials.
+
+### Example
 
 ```bash
 lazyload-cloud auth login \
@@ -119,56 +209,37 @@ lazyload-cloud auth login \
   --cloudflare-api-token <cloudflare-api-token>
 ```
 
-`--cloudflare-api-token` は D1 更新・参照に使います。  
-R2 だけ使うなら必須ではありませんが、`status` などで D1 metadata を使うなら設定した方が便利です。
+### Remote mode selection
 
-direct mode の認証情報が揃っている場合、CLI は自動的に direct mode を選びます。明示したい場合は次のように指定できます。
+The CLI auto-selects direct mode when all five direct credentials are available. You can also force it:
 
 ```bash
 lazyload-cloud sync --remote-mode direct
 ```
 
-### direct mode に必要な値
+### Important direct-mode behavior
 
-| 用途 | env var | CLI flag |
-| --- | --- | --- |
-| Cloudflare Account ID | `LAZYLOAD_ACCOUNT_ID` / `CLOUDFLARE_ACCOUNT_ID` | `--account-id` |
-| D1 Database ID | `LAZYLOAD_D1_DATABASE_ID` | `--d1-database-id` |
-| R2 Bucket 名 | `LAZYLOAD_R2_BUCKET` | `--r2-bucket` |
-| R2 Access Key ID | `LAZYLOAD_R2_ACCESS_KEY_ID` | `--r2-access-key-id` |
-| R2 Secret Access Key | `LAZYLOAD_R2_SECRET_ACCESS_KEY` | `--r2-secret-access-key` |
-| Cloudflare API Token | `LAZYLOAD_CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_API_TOKEN` | `--cloudflare-api-token` |
+- `sync` uploads the artifact to **R2**
+- D1 metadata is only used when a Cloudflare API token is configured
+- Remote queries in direct mode **download the artifact from R2 and run the normal local query helpers on that artifact**
 
-### D1 schema の投入
+### D1 setup
 
-direct mode で D1 metadata も使うなら、最初に migration を一度流してください。
+If you want D1 metadata support, apply the bundled schema once:
 
 ```bash
 wrangler d1 execute <DB_NAME> --file cloudflare/migrations/0001_init.sql
 ```
 
-## 設定の優先順位
+## Environment variables
 
-すべての runtime 設定は次の順で解決されます。
-
-1. CLI flags
-2. `--env-file`
-3. `process.env`
-4. user config (`auth.json`)
-5. project config (`lazyload.config.json`)
-6. default
-
-`.env` は自動ロードされません。必要なら明示的に `--env-file` を渡してください。
-
-## 利用できる主な env var
-
-### 共通
+### Shared
 
 - `LAZYLOAD_PROJECT_ID`
 - `LAZYLOAD_PREFER_REMOTE`
 - `LAZYLOAD_UPLOAD_SOURCE`
 - `LAZYLOAD_ENV_FILE`
-- `LAZYLOAD_REMOTE_MODE` (`worker` or `direct`)
+- `LAZYLOAD_REMOTE_MODE`
 - `LAZYLOAD_CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_API_TOKEN`
 
@@ -177,7 +248,7 @@ wrangler d1 execute <DB_NAME> --file cloudflare/migrations/0001_init.sql
 - `LAZYLOAD_API_BASE_URL`
 - `LAZYLOAD_API_TOKEN`
 
-### direct mode
+### Direct mode
 
 - `LAZYLOAD_ACCOUNT_ID`
 - `CLOUDFLARE_ACCOUNT_ID`
@@ -186,33 +257,31 @@ wrangler d1 execute <DB_NAME> --file cloudflare/migrations/0001_init.sql
 - `LAZYLOAD_R2_ACCESS_KEY_ID`
 - `LAZYLOAD_R2_SECRET_ACCESS_KEY`
 
+## Cloudflare scaffold
+
+`init` can generate a `cloudflare/` directory containing:
+
+- `worker.ts`
+- `wrangler.toml`
+- `migrations/0001_init.sql`
+
+The generated scaffold includes bindings/config for D1, R2, Queues, and Durable Objects.
+
 ## Agent Skills
 
-この package は `skills/` を同梱しています。
+This repository ships three skills:
 
-- `skills/lazyload-cloud/` - 汎用 query skill
-- `skills/lazyload-cloud-project/` - project 探索向け skill
-- `skills/lazyload-cloud-sync/` - auth / sync / remote 用 skill
+- `skills/lazyload-cloud/`
+- `skills/lazyload-cloud-project/`
+- `skills/lazyload-cloud-sync/`
 
-`init` 実行時に `.claude/skills/` へ展開されます。
+`init` copies them into `.claude/skills/`.
 
-### `gh skill` で使う場合
-
-```bash
-gh skill install ozekimasaki/lazyload-cloud lazyload-cloud --pin v0.1.4 --agent claude-code
-gh skill install ozekimasaki/lazyload-cloud lazyload-cloud-project --pin v0.1.4 --agent claude-code
-gh skill install ozekimasaki/lazyload-cloud lazyload-cloud-sync --pin v0.1.4 --agent claude-code
-```
-
-最新版追従なら:
-
-```bash
-gh skill install ozekimasaki/lazyload-cloud lazyload-cloud --agent claude-code
-```
+The generated skill scripts use `npx lazyload-cloud` by default, or `LAZYLOAD_CLI_BIN` when explicitly set.
 
 ## Benchmarks
 
-再実行可能な benchmark helper を同梱しています。
+Two benchmark scripts are included:
 
 ```bash
 npm run build
@@ -220,23 +289,7 @@ npm run bench:quick -- /path/to/project
 npm run bench:compare -- /path/to/project render
 ```
 
-出力は JSON です。
+- `bench:quick` measures index/stats/overview timing
+- `bench:compare` compares naive file scanning with indexed symbol search
 
-## Devbox
-
-この repository には `devbox.json` が入っているので、`devbox shell` に入れば `node`, `npm`, `gh`, `bun` が使えます。
-
-```bash
-cd lazyload_cli
-devbox shell
-npm -v
-npm install -g lazyload-cloud
-```
-
-repo 外の通常 shell でも `node` / `npm` を使いたい場合:
-
-```bash
-devbox global add nodejs@22
-source ~/.bashrc
-npm -v
-```
+Both scripts print JSON.
