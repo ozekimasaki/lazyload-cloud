@@ -1,6 +1,7 @@
 ---
 name: lazyload-cloud-project
-description: Use lazyload-cloud to understand project shape: list files, list functions, inspect module dependencies, and check architecture overview. Use this before deep code changes or when onboarding into a repository.
+description: "Use lazyload-cloud to understand project shape: list files, list functions, inspect module dependencies, and check architecture overview. Use this before deep code changes or when onboarding into a repository."
+license: MIT
 ---
 
 Use this skill when the task is structural rather than symbol-specific.

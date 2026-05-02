@@ -19,6 +19,29 @@ Cloudflare-backed code context CLI for Agent Skills.
 npm install -g lazyload-cloud
 ```
 
+## Devbox
+
+This repository includes a `devbox.json` so `node`, `npm`, `gh`, and `bun` are available automatically inside `devbox shell`.
+
+```bash
+cd lazyload_cli
+devbox shell
+npm -v
+npm install -g lazyload-cloud
+```
+
+Inside Devbox, global npm installs are redirected to a repo-local prefix under `.devbox/npm-global`, so you can use `npm install -g` without polluting the host machine.
+
+If you also want `node` / `npm` in your normal shell outside this repository, use Devbox global packages:
+
+```bash
+devbox global add nodejs@22
+source ~/.bashrc
+npm -v
+```
+
+This repository does **not** install Node system-wide. The repo `devbox.json` affects only shells started with `devbox shell`.
+
 ## Quick start
 
 ```bash

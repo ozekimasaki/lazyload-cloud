@@ -1,6 +1,7 @@
 ---
 name: lazyload-cloud
-description: Use lazyload-cloud to inspect codebases with compact queries, architecture overviews, call traces, type traces, references, and related context. Use this when you need targeted code context instead of loading many files.
+description: "Use lazyload-cloud to inspect codebases with compact queries, architecture overviews, call traces, type traces, references, and related context. Use this when you need targeted code context instead of loading many files."
+license: MIT
 ---
 
 Use `lazyload-cloud` as your default skill for focused code exploration.

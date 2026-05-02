@@ -1,6 +1,7 @@
 ---
 name: lazyload-cloud-sync
-description: Use lazyload-cloud to prepare, authenticate, and sync a local project index with the Cloudflare-backed backend. Use this when the task depends on remote status, remote query mode, or Cloudflare deployment/setup.
+description: "Use lazyload-cloud to prepare, authenticate, and sync a local project index with the Cloudflare-backed backend. Use this when the task depends on remote status, remote query mode, or Cloudflare deployment/setup."
+license: MIT
 ---
 
 Use this skill for operational workflows around auth, sync, and remote status.

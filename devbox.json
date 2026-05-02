@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.17.2/.schema/devbox.schema.json",
+  "packages": [
+    "nodejs@22",
+    "bun@1",
+    "gh@2",
+    "git"
+  ],
+  "shell": {
+    "init_hook": [
+      "export NPM_CONFIG_PREFIX=\"$PWD/.devbox/npm-global\"",
+      "mkdir -p \"$NPM_CONFIG_PREFIX\"",
+      "export PATH=\"$NPM_CONFIG_PREFIX/bin:$PATH\"",
+      "echo \"devbox ready: node=$(node -v) npm=$(npm -v)\""
+    ]
+  }
+}
