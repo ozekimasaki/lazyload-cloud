@@ -73,21 +73,17 @@ lazyload-cloud overview --format compact
 
 ## Query surface
 
-The CLI exposes query helpers through the `query` command group and compatibility aliases.
+The CLI exposes query helpers through the `query` command group and a set of top-level compatibility commands.
 
-### Primary query commands
+### `query` subcommands
 
 - `query symbols <query>`
 - `query function <name>`
-- `query class <name>`
-- `query related-context <name>`
-- `query references <name>`
 - `query calls <name>`
-- `query types <name>`
-- `query module-dependencies <module-path>`
-- `query suggest-related <name>`
 
 ### Compatibility commands
+
+Every query helper is also available as a top-level command:
 
 - `list-files`
 - `list-functions`
@@ -309,3 +305,47 @@ npm run bench:compare -- /path/to/project render
 - `bench:compare` compares naive file scanning with indexed symbol search
 
 Both scripts print JSON.
+
+## Development
+
+The project is written in TypeScript and targets Node.js 20+.
+
+```bash
+npm install         # install dependencies
+npm run build       # compile src/ to dist/ with tsc
+npm run typecheck   # type-check without emitting (tsc --noEmit)
+npm test            # run the Vitest suite once
+npm run test:watch  # run Vitest in watch mode
+```
+
+There is no separate linter configured; type checking is done through `npm run typecheck`. Tests live in `tests/` and run with Vitest (`vitest.config.ts`).
+
+## Project structure
+
+```
+src/
+  bin.ts                 # CLI entrypoint (dist/bin.js), calls runCli
+  cli.ts                 # Commander command definitions
+  index.ts               # Library entrypoint (public exports)
+  worker.ts              # Cloudflare Worker request handler + default export
+  types.ts               # Shared TypeScript types
+  lib/
+    indexer.ts           # Index building and query helpers
+    format.ts            # json / compact / markdown output formatting
+    project-config.ts    # lazyload.config.json schema and loading
+    runtime-config.ts    # Auth/config resolution and precedence
+    user-config.ts       # Stored auth file read/write
+    cloud-store.ts       # Worker-mode remote store and R2/D1 store
+    direct-cloud-store.ts # Direct D1/R2 store
+    cloud-store-factory.ts # Remote-mode detection and store creation
+    skills.ts            # Skill assets and Cloudflare scaffold generation
+tests/                   # Vitest unit and parity tests
+skills/                  # Bundled Agent Skills (lazyload-cloud, -project, -sync)
+benchmarks/              # quick.mjs and compare.mjs benchmark scripts
+tsconfig.json            # TypeScript compiler configuration
+vitest.config.ts         # Vitest configuration
+```
+
+## License
+
+[MIT](./LICENSE)
